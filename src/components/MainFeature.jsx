@@ -12,7 +12,7 @@ export default function MainFeature() {
 
   // State for selected deal
   const [selectedDeal, setSelectedDeal] = useState(null);
-  
+
   // State for booking form
   const [bookingForm, setBookingForm] = useState({
     checkIn: "",
@@ -21,12 +21,13 @@ export default function MainFeature() {
     rooms: 1,
     specialRequests: ""
   });
-  
+
   // State for form errors
+  const [formErrors, setFormErrors] = useState({});
 
   // Get deals from Redux store
   const deals = useSelector((state) => state.deals.deals);
-  
+
   // Load deals on component mount
   useEffect(() => {
     const loadDeals = async () => {
@@ -36,15 +37,14 @@ export default function MainFeature() {
     };
     loadDeals();
   }, [dispatch]);
-  const [formErrors, setFormErrors] = useState({});
-  
+
   // Set default dates when a deal is selected
   useEffect(() => {
     if (selectedDeal) {
       const today = new Date();
       const checkIn = new Date(today.setDate(today.getDate() + 30));
       const checkOut = new Date(today.setDate(today.getDate() + 3));
-      
+
       setBookingForm({
         ...bookingForm,
         checkIn: formatDateForInput(checkIn),
@@ -52,12 +52,12 @@ export default function MainFeature() {
       });
     }
   }, [selectedDeal]);
-  
+
   // Function to format date for input
   const formatDateForInput = (date) => {
     return date.toISOString().split('T')[0];
   };
-  
+
   // Function to handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -65,7 +65,7 @@ export default function MainFeature() {
       ...bookingForm,
       [name]: value
     });
-    
+
     // Clear error for this field if it exists
     if (formErrors[name]) {
       setFormErrors({
@@ -87,14 +87,11 @@ export default function MainFeature() {
   const ParkingSquareIcon = getIcon('ParkingSquare');
   const HeartIcon = getIcon('Heart');
   const HeartFilledIcon = getIcon('HeartHandshake');
-    ));
-  // Function to handle toggling favorite status in database and Redux
-  };
-  
+
   // Function to handle booking
   const handleBooking = (e) => {
     e.preventDefault();
-    
+
     // Validate form
     const errors = {};
     if (!bookingForm.checkIn) errors.checkIn = "Check-in date is required";
@@ -102,25 +99,25 @@ export default function MainFeature() {
     if (bookingForm.checkIn && bookingForm.checkOut && new Date(bookingForm.checkIn) >= new Date(bookingForm.checkOut)) {
       errors.checkOut = "Check-out date must be after check-in date";
     }
-    
-      setFormErrors(errors); 
+
+    if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
+
     // Create a booking in the database
     const createNewBooking = async () => {
       const bookingData = {
-        deal: selectedDeal.Id,
+        deal: selectedDeal.id,
         ...bookingForm
       };
-      
+
       const result = await bookingService.createBooking(bookingData);
       if (result) {
         setSelectedDeal(null);
       }
     };
-    setSelectedDeal(null);
-    
+
     // Reset form
     setBookingForm({
       checkIn: "",
@@ -128,14 +125,16 @@ export default function MainFeature() {
       guests: 2,
       rooms: 1,
       specialRequests: ""
-    
+    });
+
+    setSelectedDeal(null);
     createNewBooking();
   };
-  
+
   // Function to toggle favorite
   const toggleFavorite = async (dealId) => {
     try {
-      const deal = deals.find(d => d.Id === dealId);
+      const deal = deals.find(d => d.id === dealId);
       const success = await dealService.toggleFavorite(dealId, deal.favorite);
       if (success) {
         dispatch(toggleFavoriteAction(dealId));
@@ -143,12 +142,11 @@ export default function MainFeature() {
     } catch (error) {
       showToast.error("Failed to update favorite status");
     }
-    });
   };
-  
+
   // Function to get amenity icon
   const getAmenityIcon = (amenity) => {
-    switch(amenity.toLowerCase()) {
+    switch (amenity.toLowerCase()) {
       case 'pool':
         return <SwimmingPoolIcon className="w-4 h-4" />;
       case 'breakfast':
@@ -167,7 +165,7 @@ export default function MainFeature() {
         return <BedDoubleIcon className="w-4 h-4" />;
     }
   };
-  
+
   return (
     <section className="mt-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -175,18 +173,18 @@ export default function MainFeature() {
           <h2 className="text-2xl md:text-3xl font-bold text-primary dark:text-primary-light">Exclusive Hotel Deals</h2>
           <p className="text-surface-600 dark:text-surface-400 mt-1">Book now for special rates and packages</p>
         </div>
-        
+
         <div className="mt-4 md:mt-0 hidden md:block">
           <span className="inline-flex items-center bg-secondary/10 dark:bg-secondary-dark/20 text-secondary dark:text-secondary-light px-3 py-1 rounded-full text-sm font-medium">
             <span className="animate-pulse mr-2">●</span> Limited Time Offers
           </span>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {deals.map(deal => (
           <motion.div
-            key={deal.Id}
+            key={deal.id}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
@@ -195,20 +193,20 @@ export default function MainFeature() {
             <div className="card overflow-hidden h-full flex flex-col">
               {/* Image Section */}
               <div className="relative overflow-hidden h-48">
-                <img 
+                <img
                   src={deal.image}
-                  alt={deal.Name}
+                  alt={deal.name}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
-                
+
                 {/* Deal Badge */}
                 <div className="absolute top-3 left-3 bg-secondary text-white text-xs font-bold px-3 py-1 rounded-full">
                   {deal.discount}% OFF
                 </div>
-                
+
                 {/* Favorite Button */}
-                  onClick={() => toggleFavorite(deal.Id)}
+                <button
                   onClick={() => toggleFavorite(deal.id)}
                   className="absolute top-3 right-3 p-2 rounded-full bg-white/80 dark:bg-surface-800/80 hover:bg-white dark:hover:bg-surface-700 transition-colors"
                 >
@@ -218,14 +216,14 @@ export default function MainFeature() {
                     <HeartIcon className="w-5 h-5 text-surface-400 group-hover:text-secondary" />
                   )}
                 </button>
-                
+
                 {/* Hotel Info */}
                 <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <h3 className="font-bold text-lg text-shadow">{deal.Name}</h3>
+                  <h3 className="font-bold text-lg text-shadow">{deal.name}</h3>
                   <p className="text-sm text-white/90">{deal.hotel} • {deal.location}</p>
                 </div>
               </div>
-              
+
               {/* Deal Details */}
               <div className="p-4 flex-grow flex flex-col">
                 {/* Date Range */}
@@ -233,12 +231,12 @@ export default function MainFeature() {
                   <CalendarIcon className="w-4 h-4" />
                   <span>{deal.dateRange}</span>
                 </div>
-                
+
                 {/* Amenities */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {deal.amenities.map((amenity, idx) => (
-                    <span 
-                      key={idx} 
+                    <span
+                      key={idx}
                       className="flex items-center gap-1 text-xs bg-surface-100 dark:bg-surface-700 px-2 py-1 rounded-full"
                     >
                       {getAmenityIcon(amenity)}
@@ -246,7 +244,7 @@ export default function MainFeature() {
                     </span>
                   ))}
                 </div>
-                
+
                 {/* Price */}
                 <div className="mt-auto pt-3 border-t border-surface-200 dark:border-surface-700 flex flex-wrap justify-between items-center gap-2">
                   <div>
@@ -256,7 +254,7 @@ export default function MainFeature() {
                       <span className="text-surface-500 dark:text-surface-400 text-sm"> / night</span>
                     </div>
                   </div>
-                  
+
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -264,14 +262,14 @@ export default function MainFeature() {
                     className="btn btn-primary"
                   >
                     Book Now
-                </motion.button>
+                  </motion.button>
                 </div>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
-      
+
       {/* Booking Modal */}
       <AnimatePresence>
         {selectedDeal && (
@@ -291,21 +289,21 @@ export default function MainFeature() {
             >
               {/* Modal Header */}
               <div className="relative h-48">
-                <img 
-                  alt={selectedDeal.Name}
+                <img
+                  src={selectedDeal.image}
                   alt={selectedDeal.name}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"></div>
-                <button 
+                <button
                   onClick={() => setSelectedDeal(null)}
                   className="absolute top-3 right-3 p-2 rounded-full bg-white/80 dark:bg-surface-800/80 hover:bg-white dark:hover:bg-surface-700 transition-colors"
                 >
-                  <motion.svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-5 w-5 text-surface-800 dark:text-surface-200" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
+                  <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-surface-800 dark:text-surface-200"
+                    fill="none"
+                    viewBox="0 0 24 24"
                     stroke="currentColor"
                     whileHover={{ rotate: 90 }}
                     transition={{ duration: 0.2 }}
@@ -313,12 +311,12 @@ export default function MainFeature() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </motion.svg>
                 </button>
-                  <h3 className="font-bold text-xl text-shadow">{selectedDeal.Name}</h3>
-                  <p className="text-sm text-white/90">{selectedDeal.hotel} • {selectedDeal.location}</p>
+                <div className="absolute bottom-3 left-3 right-3 text-white">
+                  <h3 className="font-bold text-xl text-shadow">{selectedDeal.name}</h3>
                   <p className="text-sm text-white/90">{selectedDeal.hotel} • {selectedDeal.location}</p>
                 </div>
               </div>
-              
+
               {/* Booking Form */}
               <div className="p-5">
                 <div className="flex items-center justify-between mb-5">
@@ -333,7 +331,7 @@ export default function MainFeature() {
                     <span className="text-surface-500 dark:text-surface-400 text-sm"> / night</span>
                   </div>
                 </div>
-                
+
                 <form onSubmit={handleBooking} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -369,7 +367,7 @@ export default function MainFeature() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="guests" className="label flex items-center gap-1">
@@ -406,7 +404,7 @@ export default function MainFeature() {
                       </select>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label htmlFor="specialRequests" className="label">Special Requests (Optional)</label>
                     <textarea
@@ -418,7 +416,7 @@ export default function MainFeature() {
                       className="input-field min-h-[80px]"
                     ></textarea>
                   </div>
-                  
+
                   <div className="flex justify-center pt-2">
                     <motion.button
                       whileHover={{ scale: 1.02 }}

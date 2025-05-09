@@ -37,7 +37,7 @@ export default function Home() {
 
   const [searchResults, setSearchResults] = useState([]); 
   const [hasSearched, setHasSearched] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   
   // Load initial hotels
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function Home() {
   // Handle search submission
   const handleSearch = (e) => {
     e.preventDefault();
-    setLoading(true);
+    setIsSearchLoading(true);
 
     // Validate form
     if (!searchParams.location) {
@@ -92,7 +92,7 @@ export default function Home() {
 
       setSearchResults(filteredHotels);
       setHasSearched(true);
-      setLoading(false);
+      setIsSearchLoading(false);
 
       if (filteredHotels.length === 0) {
         showToast.info("No hotels found for your search criteria. Try a different location.");
@@ -101,7 +101,7 @@ export default function Home() {
       }
       } catch (error) {
         showToast.error("Search failed. Please try again.");
-        setLoading(false);
+        setIsSearchLoading(false);
       }
     };
     
@@ -252,7 +252,6 @@ export default function Home() {
                   <img 
                     src={hotel.imageUrl} 
                     alt={hotel.name}
-                    alt={hotel.Name}
                   />
                   <button className="absolute top-3 right-3 p-2 rounded-full bg-white/80 dark:bg-surface-800/80 hover:bg-white dark:hover:bg-surface-700 transition-colors">
                     <HeartIcon className="w-5 h-5 text-surface-400 hover:text-secondary transition-colors" />
@@ -301,7 +300,6 @@ export default function Home() {
                       View Rooms
                     </motion.button>
                   </div>
-                </div>
               </motion.div>
             ))}
           </div>
