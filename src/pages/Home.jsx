@@ -1,49 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { format, parseISO, addDays, differenceInDays } from 'date-fns';
-import { toast } from 'react-toastify';
+import { useDispatch, useSelector } from 'react-redux';
+import { setHotels, setLoading as setHotelsLoading } from '../store/hotelsSlice';
 import getIcon from '../utils/iconUtils';
 import MainFeature from '../components/MainFeature';
+import hotelService from '../services/hotelService';
+import searchService from '../services/searchService';
+import showToast from '../utils/toastUtils';
 
-// Mock data for hotels
-const hotels = [
-  {
-    id: 1,
-    name: "Seaside Resort & Spa",
-    location: "Miami Beach, FL",
-    price: 299,
-    rating: 4.8,
-    imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
-    amenities: ["Pool", "Spa", "Restaurant", "Fitness Center", "Beachfront"]
-  },
-  {
-    id: 2,
-    name: "Urban Boutique Hotel",
-    location: "New York, NY",
-    price: 349,
-    rating: 4.6,
-    imageUrl: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
-    amenities: ["Bar", "Restaurant", "Room Service", "Concierge", "Pet Friendly"]
-  },
-  {
-    id: 3,
-    name: "Mountain Lodge Retreat",
-    location: "Aspen, CO",
-    price: 429,
-    rating: 4.9,
-    imageUrl: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
-    amenities: ["Ski-in/Ski-out", "Fireplace", "Hot Tub", "Spa", "Restaurant"]
-  },
-  {
-    id: 4,
-    name: "Desert Oasis Resort",
-    location: "Phoenix, AZ",
-    price: 249,
-    rating: 4.5,
-    imageUrl: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
-    amenities: ["Pool", "Golf Course", "Spa", "Tennis Courts", "Restaurant"]
-  }
-];
+// Get hotels from Redux store
+const useHotelsFromStore = () => useSelector((state) => state.hotels.hotels);
 
 export default function Home() {
   // Icon components
@@ -58,6 +25,8 @@ export default function Home() {
   const WifiIcon = getIcon('Wifi');
   const PawPrintIcon = getIcon('PawPrint');
 
+  const dispatch = useDispatch();
+  const storeHotels = useHotelsFromStore();
   // State
   const [searchParams, setSearchParams] = useState({
     location: "",
@@ -65,9 +34,19 @@ export default function Home() {
     checkOut: format(addDays(new Date(), 3), 'yyyy-MM-dd'),
     guests: 2
   });
-  
-  const [searchResults, setSearchResults] = useState([]);
+
+  const [searchResults, setSearchResults] = useState([]); 
   const [hasSearched, setHasSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Load initial hotels
+  useEffect(() => {
+    const loadInitialHotels = async () => {
+      const hotels = await hotelService.fetchHotels();
+      dispatch(setHotels(hotels));
+    };
+    loadInitialHotels();
+  }, [dispatch]);
   const [loading, setLoading] = useState(false);
 
   // Handle search form input changes
@@ -83,42 +62,52 @@ export default function Home() {
   const handleSearch = (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     // Validate form
     if (!searchParams.location) {
-      toast.error("Please enter a destination");
+      showToast.error("Please enter a destination");
       setLoading(false);
       return;
     }
-    
+
     // Calculate stay duration
     const checkInDate = parseISO(searchParams.checkIn);
     const checkOutDate = parseISO(searchParams.checkOut);
     const nights = differenceInDays(checkOutDate, checkInDate);
-    
+
     if (nights < 1) {
-      toast.error("Check-out date must be after check-in date");
+      showToast.error("Check-out date must be after check-in date");
       setLoading(false);
       return;
     }
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Filter hotels based on search (just a simulation)
-      const filteredHotels = hotels.filter(hotel => 
-        hotel.location.toLowerCase().includes(searchParams.location.toLowerCase())
-      );
-      
+
+    // Perform search with real data
+    const performSearch = async () => {
+      try {
+        // Save the search request to the database
+        await searchService.saveSearchRequest(searchParams);
+        
+        // Fetch hotels matching the search criteria
+        const filteredHotels = await hotelService.fetchHotels({
+          location: searchParams.location
+        });
+
       setSearchResults(filteredHotels);
       setHasSearched(true);
       setLoading(false);
-      
+
       if (filteredHotels.length === 0) {
-        toast.info("No hotels found for your search criteria. Try a different location.");
+        showToast.info("No hotels found for your search criteria. Try a different location.");
       } else {
-        toast.success(`Found ${filteredHotels.length} hotels for your stay!`);
+        showToast.success(`Found ${filteredHotels.length} hotels for your stay!`);
       }
-    }, 1500);
+      } catch (error) {
+        showToast.error("Search failed. Please try again.");
+        setLoading(false);
+      }
+    };
+    
+    performSearch();
   };
 
   // Get amenity icon
@@ -255,7 +244,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {searchResults.map(hotel => (
               <motion.div
-                key={hotel.id}
+                key={hotel.Id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
@@ -265,7 +254,7 @@ export default function Home() {
                   <img 
                     src={hotel.imageUrl} 
                     alt={hotel.name}
-                    className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
+                    alt={hotel.Name}
                   />
                   <button className="absolute top-3 right-3 p-2 rounded-full bg-white/80 dark:bg-surface-800/80 hover:bg-white dark:hover:bg-surface-700 transition-colors">
                     <HeartIcon className="w-5 h-5 text-surface-400 hover:text-secondary transition-colors" />
@@ -275,7 +264,7 @@ export default function Home() {
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-lg font-bold">{hotel.name}</h3>
-                    <div className="flex items-center gap-1 bg-primary-light/10 dark:bg-primary-dark/20 px-2 py-1 rounded-md">
+                    <h3 className="text-lg font-bold">{hotel.Name}</h3>
                       <StarIcon className="w-4 h-4 text-yellow-500" />
                       <span className="text-sm font-medium">{hotel.rating}</span>
                     </div>
@@ -309,7 +298,7 @@ export default function Home() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       className="btn btn-primary text-sm"
-                      onClick={() => toast.info(`Booking ${hotel.name} is not available in this MVP.`)}
+                      onClick={() => showToast.info(`Booking ${hotel.Name} is not available in this MVP.`)}
                     >
                       View Rooms
                     </motion.button>
@@ -328,22 +317,22 @@ export default function Home() {
           <p className="text-surface-600 dark:text-surface-400 mb-6">Discover trending hotels at top destinations</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {hotels.map(hotel => (
+            {storeHotels.map(hotel => (
               <motion.div
-                key={hotel.id}
+                key={hotel.Id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: hotel.id * 0.1 }}
+                transition={{ duration: 0.3, delay: parseInt(hotel.Id) % 4 * 0.1 }}
                 className="card group hover:shadow-lg dark:hover:border-primary-light/40 transition-all duration-300"
               >
                 <div className="relative overflow-hidden">
                   <img 
                     src={hotel.imageUrl} 
-                    alt={hotel.name}
+                    alt={hotel.Name}
                     className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
-                    <h3 className="text-white font-bold">{hotel.name}</h3>
+                    <h3 className="text-white font-bold">{hotel.Name}</h3>
                     <p className="text-white/80 text-sm flex items-center gap-1">
                       <MapPinIcon className="w-3 h-3" />
                       {hotel.location}
@@ -364,7 +353,7 @@ export default function Home() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className="btn btn-sm btn-outline text-xs px-3 py-1"
-                    onClick={() => toast.info(`Quick booking for ${hotel.name} is not available in this MVP.`)}
+                    onClick={() => showToast.info(`Quick booking for ${hotel.Name} is not available in this MVP.`)}
                   >
                     Quick Book
                   </motion.button>

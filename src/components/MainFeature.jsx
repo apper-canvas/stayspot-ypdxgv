@@ -1,65 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-toastify';
+import { useDispatch, useSelector } from 'react-redux';
 import getIcon from '../utils/iconUtils';
+import dealService from '../services/dealService';
+import bookingService from '../services/bookingService';
+import showToast from '../utils/toastUtils';
+import { setDeals, toggleFavorite as toggleFavoriteAction, setLoading } from '../store/dealsSlice';
 
 export default function MainFeature() {
-  // Icon components
-  const CalendarIcon = getIcon('Calendar');
-  const UsersIcon = getIcon('Users');
-  const BedDoubleIcon = getIcon('BedDouble');
-  const CoffeeIcon = getIcon('Coffee');
-  const WifiIcon = getIcon('Wifi');
-  const TvIcon = getIcon('Tv');
-  const SwimmingPoolIcon = getIcon('SwimmingPool');
-  const DumbbellIcon = getIcon('Dumbbell');
-  const UtensilsIcon = getIcon('Utensils');
-  const ParkingSquareIcon = getIcon('ParkingSquare');
-  const HeartIcon = getIcon('Heart');
-  const HeartFilledIcon = getIcon('HeartHandshake');
-
-  // State for deals
-  const [deals, setDeals] = useState([
-    {
-      id: 1,
-      name: "Summer Getaway Package",
-      hotel: "Seaside Resort & Spa",
-      location: "Miami Beach, FL",
-      originalPrice: 399,
-      discountedPrice: 299,
-      discount: 25,
-      amenities: ["Pool", "Breakfast", "WiFi", "Parking"],
-      image: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
-      dateRange: "Jun 1 - Aug 31, 2024",
-      favorite: false
-    },
-    {
-      id: 2,
-      name: "Weekend City Escape",
-      hotel: "Urban Boutique Hotel",
-      location: "New York, NY",
-      originalPrice: 499,
-      discountedPrice: 349,
-      discount: 30,
-      amenities: ["Breakfast", "WiFi", "Gym", "Restaurant"],
-      image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
-      dateRange: "Any weekend in 2024",
-      favorite: false
-    },
-    {
-      id: 3,
-      name: "Winter Ski Package",
-      hotel: "Mountain Lodge Retreat",
-      location: "Aspen, CO",
-      originalPrice: 599,
-      discountedPrice: 429,
-      discount: 28,
-      amenities: ["Breakfast", "WiFi", "Ski Storage", "Hot Tub"],
-      image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
-      dateRange: "Dec 1, 2024 - Mar 31, 2025",
-      favorite: false
-    }
-  ]);
+  const dispatch = useDispatch();
 
   // State for selected deal
   const [selectedDeal, setSelectedDeal] = useState(null);
@@ -74,6 +23,19 @@ export default function MainFeature() {
   });
   
   // State for form errors
+
+  // Get deals from Redux store
+  const deals = useSelector((state) => state.deals.deals);
+  
+  // Load deals on component mount
+  useEffect(() => {
+    const loadDeals = async () => {
+      dispatch(setLoading(true));
+      const dealsData = await dealService.fetchDeals();
+      dispatch(setDeals(dealsData));
+    };
+    loadDeals();
+  }, [dispatch]);
   const [formErrors, setFormErrors] = useState({});
   
   // Set default dates when a deal is selected
@@ -112,17 +74,21 @@ export default function MainFeature() {
       });
     }
   };
-  
-  // Function to toggle favorite
-  const toggleFavorite = (id) => {
-    setDeals(deals.map(deal => 
-      deal.id === id ? { ...deal, favorite: !deal.favorite } : deal
+  // Icon components
+  const CalendarIcon = getIcon('Calendar');
+  const UsersIcon = getIcon('Users');
+  const BedDoubleIcon = getIcon('BedDouble');
+  const CoffeeIcon = getIcon('Coffee');
+  const WifiIcon = getIcon('Wifi');
+  const TvIcon = getIcon('Tv');
+  const SwimmingPoolIcon = getIcon('SwimmingPool');
+  const DumbbellIcon = getIcon('Dumbbell');
+  const UtensilsIcon = getIcon('Utensils');
+  const ParkingSquareIcon = getIcon('ParkingSquare');
+  const HeartIcon = getIcon('Heart');
+  const HeartFilledIcon = getIcon('HeartHandshake');
     ));
-    
-    const deal = deals.find(d => d.id === id);
-    if (!deal.favorite) {
-      toast.success(`Added ${deal.name} to your favorites!`);
-    }
+  // Function to handle toggling favorite status in database and Redux
   };
   
   // Function to handle booking
@@ -137,13 +103,22 @@ export default function MainFeature() {
       errors.checkOut = "Check-out date must be after check-in date";
     }
     
-    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors); 
       setFormErrors(errors);
       return;
     }
-    
-    // Simulate booking success
-    toast.success(`Booking confirmed for ${selectedDeal.name}!`);
+    // Create a booking in the database
+    const createNewBooking = async () => {
+      const bookingData = {
+        deal: selectedDeal.Id,
+        ...bookingForm
+      };
+      
+      const result = await bookingService.createBooking(bookingData);
+      if (result) {
+        setSelectedDeal(null);
+      }
+    };
     setSelectedDeal(null);
     
     // Reset form
@@ -153,6 +128,21 @@ export default function MainFeature() {
       guests: 2,
       rooms: 1,
       specialRequests: ""
+    
+    createNewBooking();
+  };
+  
+  // Function to toggle favorite
+  const toggleFavorite = async (dealId) => {
+    try {
+      const deal = deals.find(d => d.Id === dealId);
+      const success = await dealService.toggleFavorite(dealId, deal.favorite);
+      if (success) {
+        dispatch(toggleFavoriteAction(dealId));
+      }
+    } catch (error) {
+      showToast.error("Failed to update favorite status");
+    }
     });
   };
   
@@ -196,7 +186,7 @@ export default function MainFeature() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {deals.map(deal => (
           <motion.div
-            key={deal.id}
+            key={deal.Id}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
@@ -206,8 +196,8 @@ export default function MainFeature() {
               {/* Image Section */}
               <div className="relative overflow-hidden h-48">
                 <img 
-                  src={deal.image} 
-                  alt={deal.name}
+                  src={deal.image}
+                  alt={deal.Name}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
@@ -218,7 +208,7 @@ export default function MainFeature() {
                 </div>
                 
                 {/* Favorite Button */}
-                <button 
+                  onClick={() => toggleFavorite(deal.Id)}
                   onClick={() => toggleFavorite(deal.id)}
                   className="absolute top-3 right-3 p-2 rounded-full bg-white/80 dark:bg-surface-800/80 hover:bg-white dark:hover:bg-surface-700 transition-colors"
                 >
@@ -231,7 +221,7 @@ export default function MainFeature() {
                 
                 {/* Hotel Info */}
                 <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <h3 className="font-bold text-lg text-shadow">{deal.name}</h3>
+                  <h3 className="font-bold text-lg text-shadow">{deal.Name}</h3>
                   <p className="text-sm text-white/90">{deal.hotel} • {deal.location}</p>
                 </div>
               </div>
@@ -274,7 +264,7 @@ export default function MainFeature() {
                     className="btn btn-primary"
                   >
                     Book Now
-                  </motion.button>
+                </motion.button>
                 </div>
               </div>
             </div>
@@ -302,7 +292,7 @@ export default function MainFeature() {
               {/* Modal Header */}
               <div className="relative h-48">
                 <img 
-                  src={selectedDeal.image} 
+                  alt={selectedDeal.Name}
                   alt={selectedDeal.name}
                   className="w-full h-full object-cover"
                 />
@@ -323,8 +313,8 @@ export default function MainFeature() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </motion.svg>
                 </button>
-                <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <h3 className="font-bold text-xl text-shadow">{selectedDeal.name}</h3>
+                  <h3 className="font-bold text-xl text-shadow">{selectedDeal.Name}</h3>
+                  <p className="text-sm text-white/90">{selectedDeal.hotel} • {selectedDeal.location}</p>
                   <p className="text-sm text-white/90">{selectedDeal.hotel} • {selectedDeal.location}</p>
                 </div>
               </div>
