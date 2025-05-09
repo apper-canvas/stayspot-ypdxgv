@@ -48,6 +48,9 @@ export default function Home() {
     loadInitialHotels();
   }, [dispatch]);
 
+  // Handle input changes
+  const handleInputChange = (e) => {
+    // Extract name and value from the event target
     const { name, value } = e.target;
     setSearchParams({
       ...searchParams,
