@@ -47,7 +47,6 @@ export default function Home() {
     };
     loadInitialHotels();
   }, [dispatch]);
-  const [loading, setLoading] = useState(false);
 
   // Handle search form input changes
   const handleInputChange = (e) => {
