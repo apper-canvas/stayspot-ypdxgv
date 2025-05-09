@@ -129,6 +129,7 @@ export default function Home() {
       default:
         return <InfoIcon className="w-4 h-4" />;
     }
+  }
   };
   
   return (
