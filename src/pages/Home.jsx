@@ -130,7 +130,7 @@ export default function Home() {
         return <InfoIcon className="w-4 h-4" />;
     }
   }
-  };
+  
   
   return (
     <div className="max-w-7xl mx-auto">
