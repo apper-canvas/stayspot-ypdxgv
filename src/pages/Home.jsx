@@ -37,9 +37,9 @@ export default function Home() {
 
   const [searchResults, setSearchResults] = useState([]); 
   const [hasSearched, setHasSearched] = useState(false);
-  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   
-  // Load initial hotels
+  // Load initial hotels 
   useEffect(() => {
     const loadInitialHotels = async () => {
       const hotels = await hotelService.fetchHotels();
@@ -47,8 +47,7 @@ export default function Home() {
     };
     loadInitialHotels();
   }, [dispatch]);
-  // Handle search form input changes
-  const handleInputChange = (e) => {
+
     const { name, value } = e.target;
     setSearchParams({
       ...searchParams,
@@ -59,7 +58,7 @@ export default function Home() {
   // Handle search submission
   const handleSearch = (e) => {
     e.preventDefault();
-    setIsSearchLoading(true);
+    setLoading(true);
 
     // Validate form
     if (!searchParams.location) {
@@ -92,7 +91,7 @@ export default function Home() {
 
       setSearchResults(filteredHotels);
       setHasSearched(true);
-      setIsSearchLoading(false);
+      setLoading(false);
 
       if (filteredHotels.length === 0) {
         showToast.info("No hotels found for your search criteria. Try a different location.");
@@ -101,7 +100,7 @@ export default function Home() {
       }
       } catch (error) {
         showToast.error("Search failed. Please try again.");
-        setIsSearchLoading(false);
+        setLoading(false);
       }
     };
     
